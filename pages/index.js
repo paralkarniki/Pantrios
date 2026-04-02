@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { buildLocalRecipe } from '../lib/localRecipeGenerator'
 import theme from '../lib/theme'
-import ChefHatIcon from '../components/icons/ChefHat'
 import AnimatedBackground from '../components/AnimatedBackground'
 
 const FEATURES = [
@@ -99,7 +98,7 @@ export default function HomePage() {
 				<section className="card text-center fade-in-up" style={{ padding: '2rem 1.2rem' }}>
 					<div className="flex justify-center mb-4">
 						<div className="hero-illustration">
-							<ChefHatIcon className="w-10 h-10" style={{ color: '#d97706' }} />
+							<img src="/img/logo.png" alt="Pantrio logo" style={{ width: 48, height: 48, objectFit: 'contain' }} />
 						</div>
 					</div>
 					<h1 className="text-5xl font-extrabold gradient-text">{theme.appName}</h1>

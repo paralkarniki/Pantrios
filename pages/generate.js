@@ -5,7 +5,6 @@ import IngredientInput from '../components/IngredientInput'
 import RecipeCard from '../components/RecipeCard'
 import theme from '../lib/theme'
 import { buildLocalRecipe } from '../lib/localRecipeGenerator'
-import ChefHatIcon from '../components/icons/ChefHat'
 import AnimatedBackground from '../components/AnimatedBackground'
 
 export default function Home() {
@@ -297,7 +296,7 @@ export default function Home() {
         <header className="text-center mb-10 pt-6 fade-in-up">
           <div className="flex justify-center mb-4">
             <div className="hero-illustration">
-              <ChefHatIcon className="w-10 h-10" style={{color:'#d97706'}} />
+              <img src="/img/logo.png" alt="Pantrio logo" style={{ width: 48, height: 48, objectFit: 'contain' }} />
             </div>
           </div>
           <h1 className="text-5xl font-extrabold tracking-tight gradient-text mb-2">{theme.appName}</h1>

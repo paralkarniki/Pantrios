@@ -1,6 +1,26 @@
 # Pantrio
 
+<p align="center">
+	<img src="public/img/logo.png" alt="Pantrio logo" width="140" />
+</p>
+
 Pantrio is a recipe and meal-planning web app that helps users turn pantry ingredients into meal ideas, track favorites, explore cuisines, and plan weekly or calorie-based meals.
+
+## App Preview
+
+### Main Pages
+
+| Home | Generate |
+| --- | --- |
+| ![Home](public/img/page1.png) | ![Generate](public/img/generate.png) |
+
+| Cuisines | Planner |
+| --- | --- |
+| ![Cuisines](public/img/cuisines.png) | ![Planner](public/img/planner.png) |
+
+| Calories | Daily Calories |
+| --- | --- |
+| ![Calories](public/img/calories.png) | ![Daily Calories](public/img/daily-calories.png) |
 
 ## Overview
 
