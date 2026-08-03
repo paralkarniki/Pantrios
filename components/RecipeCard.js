@@ -62,7 +62,7 @@ function buildRecipeImage(recipe = {}) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
-export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
+export default function RecipeCard({ recipe = {}, onSave, isFull = false, onUnsave, onPin, onUnpin, isPinned = false, isSaved = false }) {
   const [copied, setCopied] = useState(false)
   const [cookMode, setCookMode] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -71,6 +71,7 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
   const [showInstructions, setShowInstructions] = useState(true)
   const [imageZoom, setImageZoom] = useState(false)
   const [doneSteps, setDoneSteps] = useState({})
+  const [imageSrc, setImageSrc] = useState(null)
 
   useEffect(() => {
     setCookMode(false)
@@ -80,6 +81,16 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
     setImageZoom(false)
     setDoneSteps({})
   }, [recipe?.title])
+
+  useEffect(() => {
+    // Build the recipe image on the client only to avoid SSR/CSR emoji mismatches
+    try {
+      const customImage = recipe?.image || recipe?.imageUrl || recipe?.photo || ''
+      setImageSrc(customImage || buildRecipeImage(recipe))
+    } catch (e) {
+      setImageSrc(null)
+    }
+  }, [recipe])
 
   function handleCardMouseMove(e) {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -125,7 +136,7 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
   }
 
   return (
-    <div className="fade-in-up" style={{
+    <div className="recipe-card fade-in-up" style={{
       background:'rgba(255,255,255,0.90)',
       border:'1px solid rgba(255,255,255,0.75)',
       borderRadius:20,
@@ -152,7 +163,7 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
               </span>
             )}
           </div>
-          <div style={{display:'flex', gap:'.5rem', flexShrink:0}}>
+          <div className="card-actions" style={{display:'flex', gap:'.5rem', flexShrink:0}}>
             {!!(recipe.steps || []).length && (
               <button
                 onClick={() => setCookMode((v) => !v)}
@@ -216,6 +227,39 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
             >
               {isFull ? '⭐ Full' : '⭐ Save'}
             </button>
+            {isSaved && (
+              <>
+                <button
+                  onClick={onPin}
+                  title={isPinned ? 'Unpin from favorites' : 'Pin to favorites'}
+                  style={{
+                    padding:'.45rem .9rem', borderRadius:50, fontSize:'.85rem', fontWeight:600,
+                    background: isPinned ? 'linear-gradient(135deg,#ec4899,#db2777)' : 'rgba(255,251,235,0.9)',
+                    color: isPinned ? '#fff' : '#92400e',
+                    border: isPinned ? 'none' : '1.5px solid rgba(236,72,153,0.25)',
+                    cursor:'pointer',
+                    boxShadow: isPinned ? '0 2px 10px rgba(236,72,153,0.25)' : 'none',
+                    transition:'transform .12s, box-shadow .12s',
+                  }}
+                >
+                  {isPinned ? '📌 Pinned' : '📌 Pin'}
+                </button>
+                <button
+                  onClick={onUnsave}
+                  title='Remove from favorites'
+                  style={{
+                    padding:'.45rem .9rem', borderRadius:50, fontSize:'.85rem', fontWeight:600,
+                    background:'rgba(255,251,235,0.9)',
+                    color:'#92400e',
+                    border:'1.5px solid rgba(217,119,6,0.25)',
+                    cursor:'pointer',
+                    transition:'transform .12s, box-shadow .12s',
+                  }}
+                >
+                  🗑️ Unsave
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -230,7 +274,7 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
 
         <div style={{padding:'1rem 1.4rem 0'}}>
           <img
-            src={buildRecipeImage(recipe)}
+            src={imageSrc || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><rect width="100%" height="100%" fill="%23f3f4f6"/></svg>'}
             alt={`Generated image for ${recipe.title || 'recipe'}`}
             onClick={() => setImageZoom((v) => !v)}
             title={imageZoom ? 'Click to zoom out' : 'Click to zoom in'}
@@ -238,6 +282,7 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
               width:'100%',
               aspectRatio:'16 / 9',
               objectFit:'cover',
+              // borderRadius controlled via CSS for smoother layering
               borderRadius:14,
               border:'1px solid rgba(217,119,6,0.16)',
               boxShadow:'0 4px 16px rgba(15,23,42,0.08)',
@@ -245,6 +290,7 @@ export default function RecipeCard({ recipe = {}, onSave, isFull = false }) {
               transform:imageZoom ? 'scale(1.03)' : 'scale(1)',
               transition:'transform .2s ease'
             }}
+            className="hero-card"
           />
           <div className="small-muted" style={{fontSize:'.75rem', marginTop:'.35rem'}}>Click image to zoom</div>
         </div>

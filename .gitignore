@@ -1,6 +1,11 @@
 node_modules
 .next
+.next-build
+.next-dev
 .env.local
+.env
+.env.*.local
 dist
 out
 .DS_Store
+firebase-debug.log

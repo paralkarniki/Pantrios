@@ -90,29 +90,21 @@ No account or database setup is required.
 npm install
 ```
 
-2. Start the app:
+2. Start the dev server:
 
 ```bash
-npm run start
+npm run dev
 ```
 
 3. Open:
 
 http://localhost:3000
 
-## Useful Scripts
-
-- `npm run start` — start local development server
-- `npm run run` — same as development run
-- `npm run build` — build the project
-- `npm run preview` — build and preview exported static output
-- `npm run clean` — remove build output
-
 ## Notes
 
-- The app is currently set up as a static-friendly Next.js project.
 - Images are served from [public/img](public/img).
-- Build artifacts such as [out](out) and [.next](.next) can be regenerated at any time.
+- Build artifacts: [.next](.next) can be regenerated at any time.
+
 
 ## Future Improvements
 

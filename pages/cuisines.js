@@ -1,6 +1,8 @@
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import theme from '../lib/theme'
+import PageHeader from '../components/PageHeader'
+import { RequireAuth } from '../lib/requireAuth'
 
 const CUISINE_EMOJI = {
   Indian: '🍛',
@@ -40,33 +42,41 @@ export default function CuisinesPage() {
     return source.filter((c) => c.toLowerCase().includes(q))
   }, [query, grouped, selected])
 
-  const featuredCuisine = useMemo(() => {
+  const [featuredCuisine, setFeaturedCuisine] = useState(() => {
     const source = filtered.length ? filtered : theme.cuisineOptions
-    return source[Math.floor(Math.random() * source.length)]
+    return source[0]
+  })
+
+  // Pick a random featured cuisine on the client only to avoid SSR/CSR mismatch
+  useEffect(() => {
+    const source = filtered.length ? filtered : theme.cuisineOptions
+    if (source.length) {
+      const idx = Math.floor(Math.random() * source.length)
+      setFeaturedCuisine(source[idx])
+    }
   }, [filtered])
 
   return (
-    <div className="min-h-screen py-10">
-      <div className="app-container">
-        <div className="card">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-3xl font-bold">Cuisine Explorer</h1>
-              <p className="small-muted mt-1">Browse cuisine types and jump back to recipe generation with one click.</p>
-            </div>
-            <div className="flex gap-2">
-              <Link href="/" className="btn-primary">Home</Link>
-              <Link href="/generate" className="btn-primary">Back to Generator</Link>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setSelected('All')}
-                style={{ background: 'linear-gradient(135deg,#0ea5e9,#0369a1)' }}
-              >
-                Reset Filters
-              </button>
-            </div>
-          </div>
+    <RequireAuth fallbackPath="/cuisines">
+      <div className="min-h-screen py-10">
+        <div className="app-container">
+          <div className="card">
+          <PageHeader
+            title="Cuisine Explorer"
+            subtitle="Browse cuisine types and jump back to recipe generation with one click."
+            actions={(
+              <>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => setSelected('All')}
+                  style={{ background: 'linear-gradient(135deg,#0ea5e9,#0369a1)' }}
+                >
+                  Reset Filters
+                </button>
+              </>
+            )}
+          />
 
           <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
@@ -170,8 +180,9 @@ export default function CuisinesPage() {
               <div className="small-muted mt-1">Try a different search query or reset filters.</div>
             </div>
           )}
+          </div>
         </div>
       </div>
-    </div>
+    </RequireAuth>
   )
 }

@@ -1,5 +1,59 @@
 const checkRateLimit = require('../../lib/rateLimit')
 
+const ALLOWED_MODELS = new Set(['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini'])
+
+function parseClientIp(req) {
+  const xf = req.headers['x-forwarded-for']
+  if (typeof xf === 'string' && xf.trim()) {
+    return xf.split(',')[0].trim()
+  }
+  return req.socket?.remoteAddress || 'unknown'
+}
+
+function allowedOrigins() {
+  const envOrigins = String(process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+
+  const appUrl = String(process.env.NEXT_PUBLIC_APP_URL || '').trim()
+  const defaults = process.env.NODE_ENV === 'production'
+    ? []
+    : ['http://localhost:3000', 'http://127.0.0.1:3000']
+
+  return new Set([...defaults, ...envOrigins, ...(appUrl ? [appUrl] : [])])
+}
+
+function securityAudit(action, details = {}) {
+  try {
+    const payload = {
+      action,
+      source: 'api/generate',
+      timestamp: new Date().toISOString(),
+      ...details,
+    }
+    console.info('[security-audit]', JSON.stringify(payload))
+  } catch {
+    // Best-effort logging only
+  }
+}
+
+function sanitizePayload(body = {}) {
+  const rawIngredients = Array.isArray(body.ingredients) ? body.ingredients : []
+  const ingredients = rawIngredients
+    .map((x) => String(x || '').trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 20)
+
+  const dietary = String(body.dietary || '').trim().slice(0, 40)
+  const cuisine = String(body.cuisine || '').trim().slice(0, 40)
+
+  const n = Number(body.maxTime)
+  const maxTime = Number.isFinite(n) ? Math.max(5, Math.min(180, Math.round(n))) : undefined
+
+  return { ingredients, dietary, cuisine, maxTime }
+}
+
 function toTitleCase(value = '') {
   return value
     .split(' ')
@@ -230,13 +284,56 @@ function buildLocalRecipe({ ingredients = [], dietary = '', maxTime, cuisine = '
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const ip = parseClientIp(req)
 
-  const { ingredients = [], dietary = '', maxTime, cuisine = '', model: requestedModel } = req.body || {}
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST')
+    securityAudit('method_blocked', { ip, method: req.method || 'unknown', status: 'blocked' })
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
 
-  const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown'
-  if (!checkRateLimit(ip, 40, 60_000)) {
-    return res.status(429).json({ error: 'Rate limit exceeded' })
+  res.setHeader('Cache-Control', 'no-store')
+
+  const origin = String(req.headers.origin || '').trim()
+  const allowed = allowedOrigins()
+  if (origin && !allowed.has(origin)) {
+    securityAudit('origin_blocked', { ip, origin, status: 'blocked' })
+    return res.status(403).json({ error: 'Forbidden origin' })
+  }
+
+  const contentType = String(req.headers['content-type'] || '').toLowerCase()
+  if (!contentType.includes('application/json')) {
+    securityAudit('content_type_blocked', { ip, contentType, status: 'blocked' })
+    return res.status(415).json({ error: 'Content-Type must be application/json' })
+  }
+
+  const { ingredients = [], dietary = '', maxTime, cuisine = '' } = sanitizePayload(req.body || {})
+  const requestedModel = String(req.body?.model || '').trim()
+
+  if (!ingredients.length) {
+    securityAudit('validation_failed', { ip, reason: 'missing_ingredients', status: 'blocked' })
+    return res.status(400).json({ error: 'Please provide at least one ingredient' })
+  }
+
+  const minuteLimit = checkRateLimit(`${ip}:minute`, 20, 60_000)
+  const hourLimit = checkRateLimit(`${ip}:hour`, 200, 3_600_000)
+
+  res.setHeader('X-RateLimit-Limit', String(minuteLimit.limit))
+  res.setHeader('X-RateLimit-Remaining', String(Math.min(minuteLimit.remaining, hourLimit.remaining)))
+  res.setHeader('X-RateLimit-Reset', String(Math.min(minuteLimit.resetAt, hourLimit.resetAt)))
+
+  if (!minuteLimit.allowed || !hourLimit.allowed) {
+    const retryAfterMs = Math.max(minuteLimit.retryAfterMs || 0, hourLimit.retryAfterMs || 0)
+    const retryAfterSec = Math.max(1, Math.ceil(retryAfterMs / 1000))
+    res.setHeader('Retry-After', String(retryAfterSec))
+    securityAudit('rate_limit_blocked', {
+      ip,
+      status: 'blocked',
+      minuteLimit,
+      hourLimit,
+      retryAfterSec,
+    })
+    return res.status(429).json({ error: 'Rate limit exceeded', retryAfterSec })
   }
 
   const useOpenAI = String(process.env.USE_OPENAI || 'false').toLowerCase() === 'true'
@@ -244,11 +341,18 @@ export default async function handler(req, res) {
 
   // Free mode is the default: local generator, no paid API required.
   if (!useOpenAI || !key) {
+    securityAudit('recipe_generated', {
+      ip,
+      status: 'success',
+      mode: 'local',
+      ingredientsCount: ingredients.length,
+    })
     return res.status(200).json(buildLocalRecipe({ ingredients, dietary, maxTime, cuisine }))
   }
 
   try {
-    const model = typeof requestedModel === 'string' && requestedModel.length > 0 ? requestedModel : (process.env.OPENAI_MODEL || 'gpt-4o-mini')
+    const fallbackModel = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+    const model = requestedModel && ALLOWED_MODELS.has(requestedModel) ? requestedModel : fallbackModel
 
     const prompt = `You are a helpful chef. Given available ingredients: ${JSON.stringify(ingredients)}. Dietary constraint: ${dietary}. Max time: ${maxTime || 'no limit'}. Cuisine: ${cuisine}. Return only valid JSON with keys: title, ingredients (array of strings), steps (array of strings). Keep ingredients concise.`
 
@@ -266,6 +370,17 @@ export default async function handler(req, res) {
       })
     })
 
+    if (!r.ok) {
+      const errorText = await r.text()
+      securityAudit('openai_request_failed', {
+        ip,
+        status: 'error',
+        code: r.status,
+      })
+      console.error('OpenAI request failed:', r.status, errorText)
+      return res.status(502).json({ error: 'Upstream generation service failed' })
+    }
+
     const data = await r.json()
     const text = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || ''
 
@@ -281,11 +396,23 @@ export default async function handler(req, res) {
     }
 
     if (!parsed) {
-      return res.status(200).json({ title: 'Generated Recipe', ingredients: ingredients, steps: ['Model returned unparsable response.'] })
+      securityAudit('openai_response_unparsable', { ip, status: 'error' })
+      return res.status(200).json({ title: 'Generated Recipe', ingredients, steps: ['Model returned unparsable response.'] })
     }
 
+    securityAudit('recipe_generated', {
+      ip,
+      status: 'success',
+      mode: 'openai',
+      ingredientsCount: ingredients.length,
+    })
     return res.status(200).json(parsed)
   } catch (err) {
+    securityAudit('generation_failed', {
+      ip,
+      status: 'error',
+      message: String(err?.message || 'unknown_error'),
+    })
     console.error(err)
     return res.status(500).json({ error: 'Generation failed' })
   }
