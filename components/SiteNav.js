@@ -8,6 +8,7 @@ export default function SiteNav() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState(null)
   const homeHref = user ? '/generate' : '/'
+  const mobileMenuId = 'mobile-navigation-menu'
   const protectedItems = [
     { href: '/generate', label: 'Home' },
     { href: '/family-recipes', label: 'Family' },
@@ -28,6 +29,18 @@ export default function SiteNav() {
     const unsub = subscribeToAuth((u) => setUser(u))
     return () => unsub()
   }, [])
+
+  useEffect(() => {
+    setOpen(false)
+  }, [router.pathname])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
 
   function closeOtherGroups(current) {
     if (typeof document === 'undefined') return
@@ -117,6 +130,7 @@ export default function SiteNav() {
           className="nav-toggle"
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
+          aria-controls={mobileMenuId}
           onClick={() => setOpen((v) => !v)}
         >
           <span aria-hidden>{open ? '✕' : '☰'}</span>
@@ -124,35 +138,72 @@ export default function SiteNav() {
       </div>
 
       {open && (
-        <div className="site-mobile-menu" role="dialog" aria-modal="true">
+        <div className="site-mobile-menu" role="dialog" aria-modal="true" id={mobileMenuId}>
           <div className="mobile-backdrop" onClick={() => setOpen(false)} />
           <div className="mobile-panel">
             <div className="mobile-panel-inner">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div style={{ fontWeight: 800 }}>Pantrio</div>
+              <div className="mobile-panel-header">
+                <div>
+                  <div style={{ fontWeight: 800, fontFamily: 'Fredoka, system-ui, sans-serif' }}>Pantrio</div>
+                  <div className="small-muted" style={{ marginTop: 2 }}>Menu</div>
+                </div>
                 <button className="mobile-close" onClick={() => setOpen(false)} aria-label="Close menu">✕</button>
               </div>
-              <nav style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {navItems.map((it) => (
-                  <Link key={it.href} href={it.href} className={"nav-link mobile-link " + (router.pathname === it.href ? 'active' : '')} onClick={() => setOpen(false)}>
-                    {it.label}
-                  </Link>
-                ))}
+              <nav className="mobile-menu-content">
+                <details className="mobile-section" open>
+                  <summary className="mobile-section-title">Recipes</summary>
+                  <div className="mobile-section-links">
+                    {protectedItems.map((it) => (
+                      <Link key={it.href} href={it.href} className={"nav-link mobile-link " + (router.pathname === it.href ? 'active' : '')} onClick={() => setOpen(false)}>
+                        {it.label}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
 
-                {user ? (
-                  <a
-                    className={"nav-link mobile-link " + (router.pathname === '/logout' ? 'active' : '')}
-                    onClick={async () => {
-                      setOpen(false)
-                      try { await logout() } catch (e) {}
-                      router.replace('/')
-                    }}
-                  >
-                    Logout
-                  </a>
-                ) : (
-                  <Link href="/login" className={"nav-link mobile-link " + (router.pathname === '/login' ? 'active' : '')} onClick={() => setOpen(false)}>Login</Link>
-                )}
+                <details className="mobile-section">
+                  <summary className="mobile-section-title">Tools</summary>
+                  <div className="mobile-section-links">
+                    {toolsItems.map((it) => (
+                      <Link key={it.href} href={it.href} className={"nav-link mobile-link " + (router.pathname === it.href ? 'active' : '')} onClick={() => setOpen(false)}>
+                        {it.label}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+
+                <details className="mobile-section" open>
+                  <summary className="mobile-section-title">Account</summary>
+                  <div className="mobile-section-links">
+                    <span className="nav-link mobile-link" style={{ cursor: 'default' }}>Hi, {getDisplayName(user)}</span>
+                    {accountItems.map((it) => {
+                      if (it.action === 'logout') {
+                        return (
+                          <a
+                            key={it.label}
+                            role="button"
+                            className={"nav-link mobile-link " + (router.pathname === '/logout' ? 'active' : '')}
+                            style={{ cursor: 'pointer' }}
+                            onClick={async (e) => {
+                              e.preventDefault()
+                              setOpen(false)
+                              try { await logout() } catch (err) {}
+                              router.replace('/')
+                            }}
+                          >
+                            {it.label}
+                          </a>
+                        )
+                      }
+
+                      return (
+                        <Link key={it.href} href={it.href} className={"nav-link mobile-link " + (router.pathname === it.href ? 'active' : '')} onClick={() => setOpen(false)}>
+                          {it.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </details>
               </nav>
             </div>
           </div>
