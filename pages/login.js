@@ -267,14 +267,16 @@ export default function LoginPage() {
 								</label>
 
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-									<a role="button" onClick={() => setShowReset((v) => !v)} className="small-muted" style={{ cursor: 'pointer' }}>Forgot password?</a>
+									<a role="button" onClick={() => setShowReset((v) => !v)} className="small-muted" style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+										{showReset ? 'Cancel reset' : 'Forgot password?'}
+									</a>
 								</div>
 
 								{showReset && (
-									<form onSubmit={onSendReset} style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-										<input className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" required />
-										<button type="submit" className="btn-primary" disabled={busy} style={{ padding: '.45rem .8rem' }}>Send reset link</button>
-									</form>
+									<div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+										<input className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
+										<button type="button" className="btn-primary" disabled={busy} onClick={onSendReset} style={{ padding: '.45rem .8rem', whiteSpace: 'nowrap' }}>Send reset link</button>
+									</div>
 								)}
 
 								<button type="submit" disabled={busy || !canSubmit} className="btn-primary" style={{ padding: '0.75rem 1rem' }}>{busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Login'}</button>
