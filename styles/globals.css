@@ -412,10 +412,14 @@ summary::-webkit-details-marker { display: none }
 @media (max-width: 640px) {
   [style*="gridTemplateColumns"] {
     grid-template-columns: 1fr !important;
+    width: 100% !important;
+    overflow: visible !important;
   }
   
   [style*="display: grid"] {
     gap: 0.75rem !important;
+    width: 100% !important;
+    overflow: visible !important;
   }
 
   /* Smaller text for mobile */
@@ -424,7 +428,20 @@ summary::-webkit-details-marker { display: none }
   h3 { font-size: 0.95rem !important; }
   
   /* Ensure all form labels are visible */
-  label { display: block !important; }
+  label { 
+    display: block !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  
+  /* Ensure form inputs are visible */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"] {
+    width: 100% !important;
+    display: block !important;
+  }
   
   /* Reduce badge size on mobile */
   .badge { font-size: 0.7rem; padding: 0.2rem 0.6rem; }
