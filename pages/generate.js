@@ -263,6 +263,7 @@ export default function Home() {
         ingredients: ingredientsPayload,
         dietary,
         maxTime,
+        targetCalories,
         cuisine,
         model,
       }
@@ -289,7 +290,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [cuisine, dietary, ingredients, maxTime, model, persistRecent, recentRecipes])
+  }, [cuisine, dietary, ingredients, maxTime, targetCalories, model, persistRecent, recentRecipes])
 
   const canSaveFavorite = !!recipe
   const isFull = favorites.length >= maxFavorites
@@ -366,7 +367,14 @@ export default function Home() {
                 </label>
                 <label>
                   <div className="small-muted">Max time (min)</div>
-                  <input className="form-control" value={maxTime} onChange={(e) => setMaxTime(e.target.value)} placeholder="e.g. 20" />
+                  <input type="number" className="form-control" value={maxTime} onChange={(e) => setMaxTime(e.target.value)} placeholder="e.g. 20" />
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.6rem', marginTop: '.6rem' }}>
+                <label>
+                  <div className="small-muted">Target calories</div>
+                  <input type="number" className="form-control" value={targetCalories} onChange={(e) => setTargetCalories(e.target.value)} placeholder="e.g. 500" />
                 </label>
               </div>
 

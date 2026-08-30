@@ -75,7 +75,10 @@ function sanitizePayload(body = {}) {
   const n = Number(body.maxTime)
   const maxTime = Number.isFinite(n) ? Math.max(5, Math.min(180, Math.round(n))) : undefined
 
-  return { ingredients, dietary, cuisine, maxTime }
+  const c = Number(body.targetCalories)
+  const targetCalories = Number.isFinite(c) ? Math.max(100, Math.min(5000, Math.round(c))) : undefined
+
+  return { ingredients, dietary, cuisine, maxTime, targetCalories }
 }
 
 function toTitleCase(value = '') {
@@ -256,7 +259,7 @@ function planSteps({ dishType, base, cuisineLabel, seasoningBlend, maxTime, seed
   return selected.map((s, idx) => `${idx + 1}. ${s}`)
 }
 
-function buildTitle({ dishType, cuisineLabel, timeLabel, dietaryLabel, hero, seed }) {
+function buildTitle({ dishType, cuisineLabel, timeLabel, dietaryLabel, calorieLabel, hero, seed }) {
   const suffixByType = {
     'flash-skillet': ['Skillet', 'Sauté', 'Quick Pan Toss'],
     'grain-bowl': ['Power Bowl', 'Nourish Bowl', 'Harvest Bowl'],
@@ -267,26 +270,27 @@ function buildTitle({ dishType, cuisineLabel, timeLabel, dietaryLabel, hero, see
     'one-pot': ['One-Pot Meal', 'Pantry Pot', 'Comfort Pot']
   }
   const suffix = pick(suffixByType[dishType] || ['Recipe'], seed + 17)
-  return `${timeLabel}${dietaryLabel}${cuisineLabel} ${hero} ${suffix}`.replace(/\s+/g, ' ').trim()
+  return `${timeLabel}${calorieLabel}${dietaryLabel}${cuisineLabel} ${hero} ${suffix}`.replace(/\s+/g, ' ').trim()
 }
 
-function buildLocalRecipe({ ingredients = [], dietary = '', maxTime, cuisine = '' }) {
+function buildLocalRecipe({ ingredients = [], dietary = '', maxTime, targetCalories, cuisine = '' }) {
   const cleaned = ingredients
     .map(i => String(i || '').trim())
     .filter(Boolean)
     .slice(0, 10)
 
   const base = cleaned.length ? cleaned : ['onion', 'garlic', 'tomato', 'chickpeas']
-  const seed = hashString(`${base.join('|')}|${dietary}|${maxTime || ''}|${cuisine}`)
+  const seed = hashString(`${base.join('|')}|${dietary}|${maxTime || ''}|${cuisine}|${targetCalories || ''}`)
   const cuisineLabel = cuisine ? toTitleCase(cuisine) : 'Home-Style'
   const dietaryLabel = dietary ? `${dietary} ` : ''
   const timeLabel = maxTime && Number(maxTime) > 0 ? `${Number(maxTime)}-Minute ` : 'Quick '
+  const calorieLabel = targetCalories && Number(targetCalories) > 0 ? `${Number(targetCalories)}-Cal ` : ''
 
   const dishType = classifyDish({ ingredients: base, cuisine, maxTime })
   const hero = toTitleCase(pick(base, seed) || 'Pantry')
   const seasoningBlend = cuisineSeasoning(cuisine, dishType, dietary, seed)
 
-  const title = buildTitle({ dishType, cuisineLabel, timeLabel, dietaryLabel, hero, seed })
+  const title = buildTitle({ dishType, cuisineLabel, timeLabel, dietaryLabel, calorieLabel, hero, seed })
   const ingredientList = ingredientLines(base, dietary, seed)
   const steps = planSteps({
     dishType,
@@ -302,6 +306,7 @@ function buildLocalRecipe({ ingredients = [], dietary = '', maxTime, cuisine = '
     cuisine: cuisineLabel,
     dietary: dietary || undefined,
     time: maxTime && Number(maxTime) > 0 ? Number(maxTime) : undefined,
+    calories: targetCalories && Number(targetCalories) > 0 ? Number(targetCalories) : undefined,
     ingredients: ingredientList,
     steps
   }
@@ -331,7 +336,7 @@ export default async function handler(req, res) {
     return res.status(415).json({ error: 'Content-Type must be application/json' })
   }
 
-  const { ingredients = [], dietary = '', maxTime, cuisine = '' } = sanitizePayload(req.body || {})
+  const { ingredients = [], dietary = '', maxTime, targetCalories, cuisine = '' } = sanitizePayload(req.body || {})
   const requestedModel = String(req.body?.model || '').trim()
 
   if (!ingredients.length) {
@@ -371,7 +376,7 @@ export default async function handler(req, res) {
       mode: 'local',
       ingredientsCount: ingredients.length,
     })
-    return res.status(200).json(buildLocalRecipe({ ingredients, dietary, maxTime, cuisine }))
+    return res.status(200).json(buildLocalRecipe({ ingredients, dietary, maxTime, targetCalories, cuisine }))
   }
 
   try {
