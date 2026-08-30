@@ -17,11 +17,35 @@ function allowedOrigins() {
     .filter(Boolean)
 
   const appUrl = String(process.env.NEXT_PUBLIC_APP_URL || '').trim()
-  const defaults = process.env.NODE_ENV === 'production'
-    ? []
-    : ['http://localhost:3000', 'http://127.0.0.1:3000']
 
-  return new Set([...defaults, ...envOrigins, ...(appUrl ? [appUrl] : [])])
+  // Always allow localhost in dev
+  const devOrigins = process.env.NODE_ENV !== 'production'
+    ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+    : []
+
+  // Auto-detect Vercel deployment URLs from built-in env vars
+  const vercelUrl = String(process.env.VERCEL_URL || '').trim()
+  const vercelBranchUrl = String(process.env.VERCEL_BRANCH_URL || '').trim()
+  const vercelOrigins = [
+    vercelUrl ? `https://${vercelUrl}` : '',
+    vercelBranchUrl ? `https://${vercelBranchUrl}` : '',
+  ].filter(Boolean)
+
+  return new Set([
+    ...devOrigins,
+    ...envOrigins,
+    ...vercelOrigins,
+    ...(appUrl ? [appUrl] : []),
+  ])
+}
+
+function isOriginAllowed(origin, origins) {
+  if (!origin) return true // same-origin requests (no Origin header) always allowed
+  if (origins.has(origin)) return true
+  // Also allow any *.vercel.app subdomain belonging to this project
+  const projectName = String(process.env.VERCEL_PROJECT_PRODUCTION_URL || '').replace(/^https?:\/\//, '').split('.')[0]
+  if (projectName && origin.includes(projectName) && origin.endsWith('.vercel.app')) return true
+  return false
 }
 
 function securityAudit(action, details = {}) {
@@ -296,7 +320,7 @@ export default async function handler(req, res) {
 
   const origin = String(req.headers.origin || '').trim()
   const allowed = allowedOrigins()
-  if (origin && !allowed.has(origin)) {
+  if (!isOriginAllowed(origin, allowed)) {
     securityAudit('origin_blocked', { ip, origin, status: 'blocked' })
     return res.status(403).json({ error: 'Forbidden origin' })
   }
