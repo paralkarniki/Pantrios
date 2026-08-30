@@ -409,7 +409,7 @@ summary::-webkit-details-marker { display: none }
   }
   
   [style*="gridTemplateColumns: 1fr 1fr 1fr"] {
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: 1fr !important;
   }
 }
 
