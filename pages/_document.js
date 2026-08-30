@@ -7,7 +7,11 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
         <meta name="theme-color" content="#fffaf5" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="light" />
+        <meta name="apple-mobile-web-app-title" content="Pantrios" />
         <meta name="description" content="AI Recipe Generator - Turn pantry scraps into show-stopping meals" />
         {GA_ID && (
           <>
