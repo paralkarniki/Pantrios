@@ -404,21 +404,13 @@ summary::-webkit-details-marker { display: none }
 
 /* ── Responsive Grid Layouts ── */
 @media (max-width: 768px) {
-  [style*="gridTemplateColumns: 1fr 1fr"] {
-    grid-template-columns: 1fr !important;
-  }
-  
-  [style*="gridTemplateColumns: 1fr 1fr 1fr"] {
+  [style*="gridTemplateColumns"] {
     grid-template-columns: 1fr !important;
   }
 }
 
 @media (max-width: 640px) {
-  [style*="gridTemplateColumns: 1fr 1fr"] {
-    grid-template-columns: 1fr !important;
-  }
-  
-  [style*="gridTemplateColumns: 1fr 1fr 1fr"] {
+  [style*="gridTemplateColumns"] {
     grid-template-columns: 1fr !important;
   }
   
@@ -430,6 +422,9 @@ summary::-webkit-details-marker { display: none }
   h1 { font-size: 1.2rem !important; }
   h2 { font-size: 1rem !important; }
   h3 { font-size: 0.95rem !important; }
+  
+  /* Ensure all form labels are visible */
+  label { display: block !important; }
   
   /* Reduce badge size on mobile */
   .badge { font-size: 0.7rem; padding: 0.2rem 0.6rem; }
