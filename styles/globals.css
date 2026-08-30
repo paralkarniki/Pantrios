@@ -276,6 +276,7 @@ body::before{
 .site-brand .brand-link { font-weight:800; font-size:1.05rem; color:#1f2937; text-decoration:none; letter-spacing:0.3px }
 .site-links { display:flex; gap:8px; align-items:center }
 .site-links.compact { gap: 6px }
+.desktop-links { display:flex }
 .nav-link { padding:6px 10px; border-radius:10px; color:#374151; text-decoration:none; font-weight:600; transition: background .12s, transform .12s; min-height: 40px; display: flex; align-items: center; }
 .nav-link:hover { background: rgba(217,119,6,0.06); transform: translateY(-2px); }
 .nav-link.active { background: linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; box-shadow: 0 6px 18px rgba(217,119,6,0.08); }
@@ -305,8 +306,21 @@ summary::-webkit-details-marker { display: none }
   .site-nav { height: 64px }
   .site-nav-inner { padding: 8px 10px; flex-wrap: nowrap; gap: 0.75rem; }
   .site-brand { flex: 0 0 auto; }
+  .desktop-links { display: none !important; }
   .site-links { display: none; }
-  .nav-toggle { display:inline-flex; margin-left: auto; }
+  .nav-toggle {
+    display:inline-flex;
+    margin-left: auto;
+    align-items:center;
+    gap: 8px;
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,0.08);
+    background: rgba(255,255,255,0.94);
+    box-shadow: 0 8px 18px rgba(15,23,42,0.08);
+  }
+  .nav-toggle-icon { font-size: 1.1rem; line-height: 1; }
+  .nav-toggle-text { font-size: 0.84rem; font-weight: 700; color: #374151; }
   .nav-group-items { position: static; box-shadow: none; background: transparent; padding: 0; border: none; min-width: 0 }
   .nav-group { display: contents }
   .nav-group-label { padding: 6px 8px; border-radius: 8px }
@@ -317,9 +331,12 @@ summary::-webkit-details-marker { display: none }
 }
 
 @media (max-width: 640px) {
-  .site-nav-inner { padding: 8px; }
+  .site-nav { height: 60px; }
+  .site-nav-inner { padding: 0 10px; gap: 0.5rem; }
   .site-brand .brand-link { font-size: 0.95rem; }
   .nav-link { font-size: 0.8rem; padding: 5px 8px; min-height: 36px; }
+  .nav-toggle { padding: 0.5rem 0.75rem; }
+  .nav-toggle-text { font-size: 0.8rem; }
 }
 
 .nav-toggle { display:none; background: transparent; border: none; font-size: 1.2rem; cursor: pointer; color: #374151 }

@@ -70,7 +70,7 @@ export default function SiteNav() {
           <Link href={homeHref} className="brand-link">Pantrio</Link>
         </div>
 
-        <div className="site-links compact" role="navigation" aria-label="Primary">
+        <div className="site-links compact desktop-links" role="navigation" aria-label="Primary">
           <details className="nav-group" onToggle={(e) => { if (e.currentTarget.open) closeOtherGroups(e.currentTarget) }}>
             <summary className="nav-group-label">Recipes</summary>
             <div className="nav-group-items">
@@ -133,7 +133,8 @@ export default function SiteNav() {
           aria-controls={mobileMenuId}
           onClick={() => setOpen((v) => !v)}
         >
-          <span aria-hidden>{open ? '✕' : '☰'}</span>
+          <span aria-hidden className="nav-toggle-icon">{open ? '✕' : '☰'}</span>
+          <span className="nav-toggle-text">{open ? 'Close' : 'Menu'}</span>
         </button>
       </div>
 
