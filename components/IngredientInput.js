@@ -28,10 +28,10 @@ export default function IngredientInput({ value = [], onChange, placeholder = th
       <label style={{display:'block', fontSize:'.82rem', fontWeight:700, color:'#92400e', marginBottom:'.5rem', letterSpacing:'.04em', textTransform:'uppercase'}}>
         {theme.labels.ingredients}
       </label>
-      <div style={{display:'flex', gap:'.5rem'}}>
+      <div style={{display:'flex', gap:'.5rem', flexWrap:'wrap'}}>
         <input
           className="form-control"
-          style={{flex:1, borderRadius:12}}
+          style={{flex:'1 1 200px', borderRadius:12, minWidth:'150px'}}
           placeholder={placeholder}
           value={text}
           onKeyDown={onKey}
@@ -40,7 +40,7 @@ export default function IngredientInput({ value = [], onChange, placeholder = th
         <button
           type="button"
           className="btn-primary"
-          style={{borderRadius:12, padding:'.55rem 1.1rem', fontSize:'.9rem'}}
+          style={{borderRadius:12, padding:'.55rem 1.1rem', fontSize:'.9rem', flexShrink:0, minWidth:'80px', minHeight:'44px'}}
           onClick={add}
         >
           + Add
