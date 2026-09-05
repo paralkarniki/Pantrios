@@ -17,6 +17,19 @@ export default function SiteNav() {
 
   const toolsItems = [{ href: '/planner', label: 'Planner' }]
 
+  const exploreItems = [
+    { href: '/pantry-scanner', label: 'Pantry Scanner' },
+    { href: '/smart-substitutions', label: 'Substitutions' },
+    { href: '/budget-mode', label: 'Budget' },
+    { href: '/time-mode', label: 'Time Mode' },
+    { href: '/leftover-mode', label: 'Leftovers' },
+    { href: '/mood-mode', label: 'Mood Mode' },
+    { href: '/voice-mode', label: 'Voice' },
+    { href: '/step-timer', label: 'Timers' },
+    { href: '/cook-again', label: 'Cook Again' },
+    { href: '/shareable-recipe-cards', label: 'Share Cards' },
+  ]
+
   const accountItems = user
     ? [
         { href: '/profile', label: 'Profile' },
@@ -86,6 +99,17 @@ export default function SiteNav() {
             <summary className="nav-group-label">Tools</summary>
             <div className="nav-group-items">
               {toolsItems.map((it) => (
+                <Link key={it.href} href={it.href} className={"nav-link " + (router.pathname === it.href ? 'active' : '')}>
+                  {it.label}
+                </Link>
+              ))}
+            </div>
+          </details>
+
+          <details className="nav-group" onToggle={(e) => { if (e.currentTarget.open) closeOtherGroups(e.currentTarget) }}>
+            <summary className="nav-group-label">Explore</summary>
+            <div className="nav-group-items">
+              {exploreItems.map((it) => (
                 <Link key={it.href} href={it.href} className={"nav-link " + (router.pathname === it.href ? 'active' : '')}>
                   {it.label}
                 </Link>
@@ -166,6 +190,17 @@ export default function SiteNav() {
                   <summary className="mobile-section-title">Tools</summary>
                   <div className="mobile-section-links">
                     {toolsItems.map((it) => (
+                      <Link key={it.href} href={it.href} className={"nav-link mobile-link " + (router.pathname === it.href ? 'active' : '')} onClick={() => setOpen(false)}>
+                        {it.label}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+
+                <details className="mobile-section">
+                  <summary className="mobile-section-title">Explore</summary>
+                  <div className="mobile-section-links">
+                    {exploreItems.map((it) => (
                       <Link key={it.href} href={it.href} className={"nav-link mobile-link " + (router.pathname === it.href ? 'active' : '')} onClick={() => setOpen(false)}>
                         {it.label}
                       </Link>
