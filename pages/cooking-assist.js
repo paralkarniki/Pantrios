@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import PageHeader from '../components/PageHeader'
 import RecipeCard from '../components/RecipeCard'
+import { estimateStepDurations } from '../lib/aiAssistant'
 
 const STEPS = [
   { label: 'Prep ingredients', minutes: 2 },
@@ -11,9 +12,11 @@ const STEPS = [
 
 export default function CookingAssistPage() {
   const [running, setRunning] = useState(false)
+  const [dynamicSteps, setDynamicSteps] = useState(STEPS)
   const [active, setActive] = useState(0)
   const [remaining, setRemaining] = useState(STEPS[0].minutes * 60)
   const [status, setStatus] = useState('Tap play to hear steps.')
+  const [stepInput, setStepInput] = useState('Chop onions. Saute with oil. Add chickpeas and cook. Serve hot with herbs.')
 
   const [title, setTitle] = useState('Golden chickpea bowl')
   const [cuisine, setCuisine] = useState('Mediterranean')
@@ -33,9 +36,9 @@ export default function CookingAssistPage() {
   }, [running])
 
   useEffect(() => {
-    setRemaining(STEPS[active].minutes * 60)
+    setRemaining((dynamicSteps[active]?.minutes || 1) * 60)
     setRunning(false)
-  }, [active])
+  }, [active, dynamicSteps])
 
   const recipe = useMemo(() => ({
     title,
@@ -43,7 +46,7 @@ export default function CookingAssistPage() {
     time: 20,
     dietary: 'High-protein',
     ingredients: ['chickpeas', 'tomato', 'olive oil', 'spinach'],
-    steps: ['Prep all ingredients.', 'Cook in one pan.', 'Serve and garnish.'],
+    steps: dynamicSteps.map((x) => x.label),
   }), [title, cuisine])
 
   const timeDisplay = useMemo(() => {
@@ -70,6 +73,17 @@ export default function CookingAssistPage() {
     setStatus('Voice instructions stopped.')
   }
 
+  function runAiStepTiming() {
+    const parsed = estimateStepDurations(stepInput)
+    if (!parsed.length) {
+      setStatus('Add a few cooking instructions first.')
+      return
+    }
+    setDynamicSteps(parsed)
+    setActive(0)
+    setStatus(`AI mapped ${parsed.length} steps with time estimates.`)
+  }
+
   return (
     <div className="app-container">
       <PageHeader
@@ -89,8 +103,18 @@ export default function CookingAssistPage() {
 
       <section className="card" style={{ marginTop: '1rem' }}>
         <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Step timer</h2>
+        <textarea
+          className="form-control"
+          rows={3}
+          value={stepInput}
+          onChange={(e) => setStepInput(e.target.value)}
+          placeholder="Paste recipe steps here for AI timing"
+        />
+        <div style={{ marginTop: '.7rem' }}>
+          <button className="btn-primary" type="button" onClick={runAiStepTiming}>AI estimate step times</button>
+        </div>
         <div style={{ display: 'grid', gap: '.7rem' }}>
-          {STEPS.map((s, i) => (
+          {dynamicSteps.map((s, i) => (
             <button key={s.label} type="button" className="stat-card" onClick={() => setActive(i)} style={{ textAlign: 'left', cursor: 'pointer' }}>
               <div style={{ fontWeight: 700 }}>{i + 1}. {s.label} · {s.minutes} min</div>
             </button>
@@ -103,7 +127,7 @@ export default function CookingAssistPage() {
           </div>
           <div style={{ display: 'flex', gap: '.5rem' }}>
             <button className="btn-primary" onClick={() => setRunning((v) => !v)}>{running ? 'Pause' : 'Start'}</button>
-            <button className="btn-primary" onClick={() => setRemaining(STEPS[active].minutes * 60)} style={{ background: 'linear-gradient(135deg,#f59e0b,#c2410c)' }}>Reset</button>
+            <button className="btn-primary" onClick={() => setRemaining((dynamicSteps[active]?.minutes || 1) * 60)} style={{ background: 'linear-gradient(135deg,#f59e0b,#c2410c)' }}>Reset</button>
           </div>
         </div>
       </section>

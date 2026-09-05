@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import PageHeader from '../components/PageHeader'
 import { subscribeToAuth } from '../lib/auth'
 import { readScopedJSON } from '../lib/clientStorage'
+import { recommendBudgetMeals } from '../lib/aiAssistant'
 
 const RECENT_KEY = 'pantrio:recent'
 const PRESETS = [10, 15, 20, 30, 60]
@@ -40,6 +41,14 @@ export default function PlanningHubPage() {
     return MEALS.filter((x) => x.cost <= b)
   }, [budget])
 
+  const aiRanked = useMemo(() => {
+    return recommendBudgetMeals(MEALS, {
+      budget: Number(budget) || 0,
+      timePreset,
+      recentTitles: recent.map((r) => r?.title).filter(Boolean),
+    }).slice(0, 3)
+  }, [budget, timePreset, recent])
+
   function cookAgain(recipe) {
     const encoded = encodeRecipe(recipe)
     router.push(`/generate?r=${encodeURIComponent(encoded)}`)
@@ -61,6 +70,24 @@ export default function PlanningHubPage() {
         </div>
         <div style={{ display: 'grid', gap: '.6rem', marginTop: '.8rem' }}>
           {options.length ? options.map((o) => <div key={o.title} className="stat-card"><div style={{ fontWeight: 700 }}>{o.title} · ${o.cost.toFixed(2)}</div></div>) : <p className="small-muted" style={{ margin: 0 }}>No meals in this range yet.</p>}
+        </div>
+      </section>
+
+      <section className="card" style={{ marginTop: '1rem' }}>
+        <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>AI recommendations</h2>
+        <p className="small-muted" style={{ marginTop: 0 }}>
+          Ranked using budget fit, time target, and diversity from recent cooking history.
+        </p>
+        <div style={{ display: 'grid', gap: '.65rem' }}>
+          {aiRanked.map((item) => (
+            <div key={item.title} className="stat-card" style={{ justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>{item.title}</div>
+                <div className="small-muted" style={{ marginTop: 4 }}>${item.cost.toFixed(2)} · {item.reason}</div>
+              </div>
+              <span className="badge">AI {Math.round(item.aiScore * 100)}%</span>
+            </div>
+          ))}
         </div>
       </section>
 
