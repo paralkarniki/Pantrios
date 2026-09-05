@@ -88,6 +88,42 @@ body::before{
   .card { border-radius: 16px; padding: 1.25rem; }
 }
 
+.recipe-form-grid,
+.recipe-calories-grid {
+  display: grid;
+  gap: .6rem;
+  width: 100%;
+  padding-right: .2rem;
+}
+
+.recipe-form-grid {
+  margin-top: .9rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recipe-calories-grid {
+  margin-top: .6rem;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 340px;
+}
+
+@media (max-width: 768px) {
+  .recipe-form-grid,
+  .recipe-calories-grid {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .recipe-form-grid,
+  .recipe-calories-grid {
+    grid-template-columns: 1fr;
+    gap: .75rem;
+    max-width: none;
+  }
+}
+
 /* ── Accent top-bar card ── */
 .card-accented { border-top: 3px solid #d97706; }
 

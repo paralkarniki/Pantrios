@@ -356,7 +356,7 @@ export default function Home() {
             <div style={{ padding: '.6rem' }}>
               <IngredientInput value={ingredients} onChange={setIngredients} placeholder={theme.placeholders.ingredients} />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.6rem', marginTop: '.9rem', paddingRight: '0.2rem' }}>
+              <div className="recipe-form-grid">
                 <label>
                   <div className="small-muted">Cuisine</div>
                   <input className="form-control" value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="e.g. Indian" />
@@ -371,7 +371,7 @@ export default function Home() {
                 </label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.6rem', marginTop: '.6rem', paddingRight: '0.2rem' }}>
+              <div className="recipe-calories-grid">
                 <label>
                   <div className="small-muted">Target calories</div>
                   <input type="number" className="form-control" value={targetCalories} onChange={(e) => setTargetCalories(e.target.value)} placeholder="e.g. 500" />
