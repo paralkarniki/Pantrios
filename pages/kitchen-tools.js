@@ -3,73 +3,90 @@ import Link from 'next/link'
 import PageHeader from '../components/PageHeader'
 import RecipeCard from '../components/RecipeCard'
 import { extractIngredientsFromText, scoreSubstitutions } from '../lib/aiAssistant'
-
-const SAMPLE_INGREDIENTS = {
-  default: ['onion', 'garlic', 'tomato', 'spinach'],
-  veg: ['spinach', 'broccoli', 'carrot', 'bell pepper', 'mushroom'],
-  spice: ['cumin', 'paprika', 'turmeric', 'coriander'],
-}
-
-const SUBSTITUTIONS = {
-  milk: ['oat milk', 'soy milk', 'almond milk'],
-  butter: ['olive oil', 'vegan butter', 'ghee'],
-  egg: ['flax egg', 'chia egg', 'mashed banana'],
-  flour: ['oat flour', 'almond flour', 'gluten-free blend'],
-}
-
-const ALLERGENS = ['dairy', 'egg', 'gluten', 'nuts', 'soy']
-const MOODS = ['cozy', 'spicy', 'light', 'comfort', 'high-protein']
+import theme from '../lib/theme'
 
 function detectIngredients(fileName = '') {
-  const name = String(fileName).toLowerCase()
-  if (/(spice|seasoning|masala)/.test(name)) return SAMPLE_INGREDIENTS.spice
-  if (/(veg|veggie|produce|greens)/.test(name)) return SAMPLE_INGREDIENTS.veg
-  return SAMPLE_INGREDIENTS.default
+  return extractIngredientsFromText(fileName)
 }
 
-function buildSuggestions(ingredient, allergens) {
-  const key = String(ingredient || '').trim().toLowerCase()
-  const base = SUBSTITUTIONS[key] || ['olive oil', 'beans', 'tofu']
-  const filtered = base.filter((item) => {
-    const lower = item.toLowerCase()
-    if (allergens.includes('dairy') && /milk|butter/.test(lower)) return false
-    if (allergens.includes('egg') && /egg/.test(lower)) return false
-    if (allergens.includes('gluten') && /flour/.test(lower)) return false
-    if (allergens.includes('nuts') && /almond|nut/.test(lower)) return false
-    if (allergens.includes('soy') && /soy/.test(lower)) return false
-    return true
-  })
-  return filtered.length ? filtered : ['olive oil', 'fresh herbs']
+function parseAllergens(input = '') {
+  return String(input)
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
 }
 
 function leftoverIdeas(text = '', mood = 'cozy') {
-  const items = String(text).split(',').map((x) => x.trim()).filter(Boolean)
-  if (!items.length) return [`${mood} soup bowl`, `${mood} stir-fry`, `${mood} wraps`]
+  const items = extractIngredientsFromText(text)
+  const cuisineGuides = theme.cuisineGuides || {}
+  const moodKey = Object.keys(cuisineGuides).find((k) => String(k).toLowerCase() === String(mood).toLowerCase())
+  const guide = moodKey ? cuisineGuides[moodKey] : null
+  const staples = Array.isArray(guide?.staples) ? guide.staples.slice(0, 2) : []
+
+  const main = items.slice(0, 2)
+  const all = items.slice(0, 5)
+  const base = [...main, ...staples].filter(Boolean)
+
+  if (!all.length) {
+    const style = String(mood || 'homestyle').toLowerCase()
+    return [
+      `${style} one-pan mix with pantry staples`,
+      `${style} quick bowl using fridge leftovers`,
+      `${style} warm saute with any available vegetables`,
+    ]
+  }
+
+  const joinedMain = base.length ? base.join(' + ') : all.join(' + ')
+  const focus = all[0]
+  const fullList = all.join(', ')
+
   return [
-    `${mood} bowl with ${items.slice(0, 2).join(' and ')}`,
-    `${mood} fried rice using ${items[0]}`,
-    `${mood} skillet with ${items.join(', ')}`,
+    `${String(mood)} grain bowl with ${joinedMain}`,
+    `${String(mood)} skillet centered on ${focus}`,
+    `Leftover remix: sauté ${fullList}${staples.length ? ` with ${staples.join(' and ')}` : ''}`,
   ]
 }
 
 export default function KitchenToolsPage() {
   const [fileName, setFileName] = useState('')
   const [detected, setDetected] = useState([])
-  const [pantryNotes, setPantryNotes] = useState('spinach, rice, garlic, chili')
+  const [pantryNotes, setPantryNotes] = useState('')
   const [aiExtracted, setAiExtracted] = useState([])
 
-  const [ingredient, setIngredient] = useState('milk')
-  const [allergens, setAllergens] = useState([])
+  const [ingredient, setIngredient] = useState('')
+  const [allergenText, setAllergenText] = useState('')
 
-  const [leftovers, setLeftovers] = useState('rice, spinach, chicken')
-  const [mood, setMood] = useState('cozy')
+  const [leftovers, setLeftovers] = useState('')
+  const [mood, setMood] = useState(String((theme.cuisineOptions || [])[0] || 'homestyle').toLowerCase())
   const [loadingRecipe, setLoadingRecipe] = useState(false)
   const [aiRecipe, setAiRecipe] = useState(null)
   const [aiError, setAiError] = useState('')
 
-  const suggestions = useMemo(() => buildSuggestions(ingredient, allergens), [ingredient, allergens])
-  const rankedSuggestions = useMemo(() => scoreSubstitutions(ingredient, suggestions, allergens), [ingredient, suggestions, allergens])
+  const allergens = useMemo(() => parseAllergens(allergenText), [allergenText])
+  const contextSuggestions = useMemo(() => {
+    const fromLeftovers = extractIngredientsFromText(leftovers)
+    const cuisineStaples = Object.values(theme.cuisineGuides || {})
+      .flatMap((guide) => Array.isArray(guide?.staples) ? guide.staples : [])
+      .slice(0, 24)
+
+    const pool = Array.from(new Set([
+      ...(detected || []),
+      ...(aiExtracted || []),
+      ...fromLeftovers,
+      ...cuisineStaples,
+    ]))
+
+    const key = String(ingredient || '').trim().toLowerCase()
+    return pool.filter((item) => String(item).toLowerCase() !== key).slice(0, 8)
+  }, [detected, aiExtracted, leftovers, ingredient])
+
+  const rankedSuggestions = useMemo(
+    () => scoreSubstitutions(ingredient, contextSuggestions, allergens),
+    [ingredient, contextSuggestions, allergens]
+  )
   const ideas = useMemo(() => leftoverIdeas(leftovers, mood), [leftovers, mood])
+  const moodSuggestions = useMemo(() => (theme.cuisineOptions || []).slice(0, 6).map((x) => String(x).toLowerCase()), [])
 
   function onPickFile(e) {
     const file = e.target.files?.[0]
@@ -116,10 +133,6 @@ export default function KitchenToolsPage() {
     } finally {
       setLoadingRecipe(false)
     }
-  }
-
-  function toggleAllergen(name) {
-    setAllergens((prev) => prev.includes(name) ? prev.filter((x) => x !== name) : [name, ...prev])
   }
 
   return (
@@ -170,13 +183,7 @@ export default function KitchenToolsPage() {
         <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Smart substitutions</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '.6rem' }}>
           <input className="form-control" value={ingredient} onChange={(e) => setIngredient(e.target.value)} placeholder="ingredient to replace" />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem' }}>
-            {ALLERGENS.map((a) => (
-              <button key={a} type="button" className="chip" onClick={() => toggleAllergen(a)} style={{ border: 'none', cursor: 'pointer' }}>
-                {allergens.includes(a) ? '✓ ' : ''}{a}
-              </button>
-            ))}
-          </div>
+          <input className="form-control" value={allergenText} onChange={(e) => setAllergenText(e.target.value)} placeholder="allergens (comma separated): dairy, nuts" />
           <div style={{ display: 'grid', gap: '.5rem' }}>
             {rankedSuggestions.map((item) => (
               <div key={item.name} className="stat-card" style={{ padding: '.7rem .9rem' }}>
@@ -186,6 +193,7 @@ export default function KitchenToolsPage() {
                 </div>
               </div>
             ))}
+            {!rankedSuggestions.length && <p className="small-muted" style={{ margin: 0 }}>Add pantry context above to get AI substitutions.</p>}
           </div>
         </div>
       </section>
@@ -194,7 +202,7 @@ export default function KitchenToolsPage() {
         <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Leftover + mood mode</h2>
         <textarea className="form-control" rows={3} value={leftovers} onChange={(e) => setLeftovers(e.target.value)} placeholder="leftovers, comma separated" />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem', marginTop: '.7rem' }}>
-          {MOODS.map((m) => (
+          {moodSuggestions.map((m) => (
             <button key={m} type="button" className="chip" onClick={() => setMood(m)} style={{ border: 'none', cursor: 'pointer', opacity: mood === m ? 1 : 0.75 }}>
               {m}
             </button>
