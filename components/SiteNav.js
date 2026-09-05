@@ -18,16 +18,9 @@ export default function SiteNav() {
   const toolsItems = [{ href: '/planner', label: 'Planner' }]
 
   const exploreItems = [
-    { href: '/pantry-scanner', label: 'Pantry Scanner' },
-    { href: '/smart-substitutions', label: 'Substitutions' },
-    { href: '/budget-mode', label: 'Budget' },
-    { href: '/time-mode', label: 'Time Mode' },
-    { href: '/leftover-mode', label: 'Leftovers' },
-    { href: '/mood-mode', label: 'Mood Mode' },
-    { href: '/voice-mode', label: 'Voice' },
-    { href: '/step-timer', label: 'Timers' },
-    { href: '/cook-again', label: 'Cook Again' },
-    { href: '/shareable-recipe-cards', label: 'Share Cards' },
+    { href: '/kitchen-tools', label: 'Kitchen Tools' },
+    { href: '/planning', label: 'Planning Hub' },
+    { href: '/cooking-assist', label: 'Cooking Assist' },
   ]
 
   const accountItems = user
