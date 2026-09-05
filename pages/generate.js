@@ -365,13 +365,13 @@ export default function Home() {
                   <div className="small-muted">Dietary</div>
                   <input className="form-control" value={dietary} onChange={(e) => setDietary(e.target.value)} placeholder="e.g. Vegan" />
                 </label>
+              </div>
+
+              <div className="recipe-controls-grid">
                 <label>
                   <div className="small-muted">Max time (min)</div>
                   <input type="number" className="form-control" value={maxTime} onChange={(e) => setMaxTime(e.target.value)} placeholder="e.g. 20" />
                 </label>
-              </div>
-
-              <div className="recipe-calories-grid">
                 <label>
                   <div className="small-muted">Target calories</div>
                   <input type="number" className="form-control" value={targetCalories} onChange={(e) => setTargetCalories(e.target.value)} placeholder="e.g. 500" />
