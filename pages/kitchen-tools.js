@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import PageHeader from '../components/PageHeader'
 import RecipeCard from '../components/RecipeCard'
@@ -17,35 +17,13 @@ function parseAllergens(input = '') {
     .filter(Boolean)
 }
 
-function leftoverIdeas(text = '', mood = 'cozy') {
-  const items = extractIngredientsFromText(text)
-  const cuisineGuides = theme.cuisineGuides || {}
-  const moodKey = Object.keys(cuisineGuides).find((k) => String(k).toLowerCase() === String(mood).toLowerCase())
-  const guide = moodKey ? cuisineGuides[moodKey] : null
-  const staples = Array.isArray(guide?.staples) ? guide.staples.slice(0, 2) : []
+function recipeToIdeas(recipe = {}) {
+  const title = String(recipe?.title || '').trim()
+  const steps = Array.isArray(recipe?.steps)
+    ? recipe.steps.map((s) => String(s || '').replace(/^\d+\.\s*/, '').trim()).filter(Boolean)
+    : []
 
-  const main = items.slice(0, 2)
-  const all = items.slice(0, 5)
-  const base = [...main, ...staples].filter(Boolean)
-
-  if (!all.length) {
-    const style = String(mood || 'homestyle').toLowerCase()
-    return [
-      `${style} one-pan mix with pantry staples`,
-      `${style} quick bowl using fridge leftovers`,
-      `${style} warm saute with any available vegetables`,
-    ]
-  }
-
-  const joinedMain = base.length ? base.join(' + ') : all.join(' + ')
-  const focus = all[0]
-  const fullList = all.join(', ')
-
-  return [
-    `${String(mood)} grain bowl with ${joinedMain}`,
-    `${String(mood)} skillet centered on ${focus}`,
-    `Leftover remix: sauté ${fullList}${staples.length ? ` with ${staples.join(' and ')}` : ''}`,
-  ]
+  return [title, ...steps].filter(Boolean).slice(0, 3)
 }
 
 export default function KitchenToolsPage() {
@@ -59,6 +37,9 @@ export default function KitchenToolsPage() {
 
   const [leftovers, setLeftovers] = useState('')
   const [mood, setMood] = useState(String((theme.cuisineOptions || [])[0] || 'homestyle').toLowerCase())
+  const [ideas, setIdeas] = useState([])
+  const [loadingIdeas, setLoadingIdeas] = useState(false)
+  const [ideasError, setIdeasError] = useState('')
   const [loadingRecipe, setLoadingRecipe] = useState(false)
   const [aiRecipe, setAiRecipe] = useState(null)
   const [aiError, setAiError] = useState('')
@@ -85,8 +66,12 @@ export default function KitchenToolsPage() {
     () => scoreSubstitutions(ingredient, contextSuggestions, allergens),
     [ingredient, contextSuggestions, allergens]
   )
-  const ideas = useMemo(() => leftoverIdeas(leftovers, mood), [leftovers, mood])
   const moodSuggestions = useMemo(() => (theme.cuisineOptions || []).slice(0, 6).map((x) => String(x).toLowerCase()), [])
+
+  useEffect(() => {
+    setIdeas([])
+    setIdeasError('')
+  }, [leftovers, mood])
 
   function onPickFile(e) {
     const file = e.target.files?.[0]
@@ -132,6 +117,38 @@ export default function KitchenToolsPage() {
       setAiError(err?.message || 'AI recipe failed')
     } finally {
       setLoadingRecipe(false)
+    }
+  }
+
+  async function generateLeftoverIdeas() {
+    const parsed = extractIngredientsFromText(leftovers)
+    if (!parsed.length) {
+      setIdeas([])
+      setIdeasError('Add leftovers first to generate AI ideas.')
+      return
+    }
+
+    setLoadingIdeas(true)
+    setIdeasError('')
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: parsed,
+          cuisine: mood,
+          maxTime: 20,
+          model: 'gpt-4o-mini',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'AI idea generation failed')
+      setIdeas(recipeToIdeas(data))
+    } catch (err) {
+      setIdeas([])
+      setIdeasError(err?.message || 'AI idea generation failed')
+    } finally {
+      setLoadingIdeas(false)
     }
   }
 
@@ -208,8 +225,15 @@ export default function KitchenToolsPage() {
             </button>
           ))}
         </div>
+        <div style={{ marginTop: '.7rem' }}>
+          <button className="btn-primary" type="button" onClick={generateLeftoverIdeas} disabled={loadingIdeas}>
+            {loadingIdeas ? 'Generating…' : 'AI suggest leftover ideas'}
+          </button>
+        </div>
         <div style={{ display: 'grid', gap: '.6rem', marginTop: '.8rem' }}>
           {ideas.map((idea) => <div key={idea} className="stat-card"><div style={{ fontWeight: 700 }}>{idea}</div></div>)}
+          {!ideas.length && !ideasError && <p className="small-muted" style={{ margin: 0 }}>Generate AI ideas from leftovers and mood.</p>}
+          {!!ideasError && <p className="small-muted" style={{ margin: 0, color: '#b91c1c' }}>{ideasError}</p>}
         </div>
       </section>
 
