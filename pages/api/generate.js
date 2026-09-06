@@ -196,11 +196,14 @@ function planSteps({ dishType, base, cuisineLabel, seasoningBlend, maxTime, seed
   const carbs = base.filter(i => ingredientCategory(i) === 'carb')
   const veggies = base.filter(i => ingredientCategory(i) === 'veg')
   const aromatics = base.filter(i => ingredientCategory(i) === 'aromatic')
+  const others = base.filter(i => ingredientCategory(i) === 'other')
 
-  const proteinText = proteins.length ? proteins.join(', ') : 'main protein'
-  const carbText = carbs.length ? carbs.join(', ') : 'grain base'
-  const vegText = veggies.length ? veggies.join(', ') : 'vegetables'
-  const aromaticText = aromatics.length ? aromatics.join(', ') : 'onion and garlic'
+  const proteinText = proteins.length ? proteins.join(', ') : (pick(base, seed) || 'your protein')
+  const carbText = carbs.length ? carbs.join(', ') : (pick([...others, ...base], seed + 1) || 'your base')
+  const vegText = veggies.length ? veggies.join(', ') : (pick([...others, ...base], seed + 2) || 'fresh vegetables')
+  const aromaticText = aromatics.length
+    ? aromatics.join(', ')
+    : [pick(base, seed + 3), pick(base, seed + 4)].filter(Boolean).join(' and ') || 'aromatics'
   const timeHint = maxTime && Number(maxTime) > 0 ? ` Aim to finish in about ${Number(maxTime)} minutes.` : ''
 
   const stepsByType = {
@@ -312,6 +315,44 @@ function buildLocalRecipe({ ingredients = [], dietary = '', maxTime, targetCalor
   }
 }
 
+function buildLeftoverIdeas({ ingredients = [], cuisine = '', maxTime, count = 3 }) {
+  const cleaned = ingredients
+    .map(i => String(i || '').trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 12)
+
+  const pool = cleaned.length ? cleaned : ['onion', 'tomato', 'leftover protein', 'leftover grain']
+  const total = Math.max(2, Math.min(6, Number(count) || 3))
+  const baseMinutes = maxTime && Number(maxTime) > 0 ? Number(maxTime) : 20
+
+  const ideas = Array.from({ length: total }, (_, idx) => {
+    const rotateBy = pool.length ? (idx % pool.length) : 0
+    const rotated = pool.slice(rotateBy).concat(pool.slice(0, rotateBy))
+    const variantIngredients = rotated.slice(0, Math.min(8, rotated.length))
+    const variantTime = Math.max(8, Math.min(45, baseMinutes + (idx - 1) * 4))
+
+    const variant = buildLocalRecipe({
+      ingredients: variantIngredients,
+      cuisine,
+      maxTime: variantTime,
+    })
+
+    const steps = Array.isArray(variant?.steps)
+      ? variant.steps.map((s) => String(s || '').replace(/^\d+\.\s*/, '').trim()).filter(Boolean)
+      : []
+
+    const actionStep = steps.length
+      ? steps[idx % steps.length]
+      : ''
+
+    const highlights = variantIngredients.slice(0, 4).map(toTitleCase).join(', ')
+    const action = actionStep || `Use ${variantIngredients.slice(0, 3).join(', ')} in a quick no-waste cook.`
+    return `${variant.title} (${highlights}): ${action}`
+  })
+
+  return Array.from(new Set(ideas)).slice(0, total)
+}
+
 export default async function handler(req, res) {
   const ip = parseClientIp(req)
 
@@ -336,6 +377,8 @@ export default async function handler(req, res) {
     return res.status(415).json({ error: 'Content-Type must be application/json' })
   }
 
+  const mode = String(req.body?.mode || 'recipe').trim().toLowerCase()
+  const count = Math.max(2, Math.min(6, Number(req.body?.count) || 3))
   const { ingredients = [], dietary = '', maxTime, targetCalories, cuisine = '' } = sanitizePayload(req.body || {})
   const requestedModel = String(req.body?.model || '').trim()
 
@@ -370,6 +413,17 @@ export default async function handler(req, res) {
 
   // Free mode is the default: local generator, no paid API required.
   if (!useOpenAI || !key) {
+    if (mode === 'leftover_ideas') {
+      const localIdeas = buildLeftoverIdeas({ ingredients, cuisine, maxTime, count })
+      securityAudit('leftover_ideas_generated', {
+        ip,
+        status: 'success',
+        mode: 'local',
+        ideasCount: localIdeas.length,
+      })
+      return res.status(200).json({ ideas: localIdeas })
+    }
+
     securityAudit('recipe_generated', {
       ip,
       status: 'success',
@@ -383,7 +437,9 @@ export default async function handler(req, res) {
     const fallbackModel = process.env.OPENAI_MODEL || 'gpt-4o-mini'
     const model = requestedModel && ALLOWED_MODELS.has(requestedModel) ? requestedModel : fallbackModel
 
-    const prompt = `You are a helpful chef. Given available ingredients: ${JSON.stringify(ingredients)}. Dietary constraint: ${dietary}. Max time: ${maxTime || 'no limit'}. Cuisine: ${cuisine}. Return only valid JSON with keys: title, ingredients (array of strings), steps (array of strings). Keep ingredients concise.`
+    const prompt = mode === 'leftover_ideas'
+      ? `You are a practical home chef. Ingredients: ${JSON.stringify(ingredients)}. Cuisine: ${cuisine}. Max time: ${maxTime || 20}. Return only valid JSON with keys: ideas (array of ${count} strings). Each idea must be concrete, include a dish concept, at least 2 specific ingredients from the list, and a short action phrase with timing.`
+      : `You are a helpful chef. Given available ingredients: ${JSON.stringify(ingredients)}. Dietary constraint: ${dietary}. Max time: ${maxTime || 'no limit'}. Cuisine: ${cuisine}. Return only valid JSON with keys: title, ingredients (array of strings), steps (array of strings). Keep ingredients concise.`
 
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -426,7 +482,28 @@ export default async function handler(req, res) {
 
     if (!parsed) {
       securityAudit('openai_response_unparsable', { ip, status: 'error' })
+      if (mode === 'leftover_ideas') {
+        return res.status(200).json({ ideas: buildLeftoverIdeas({ ingredients, cuisine, maxTime, count }) })
+      }
       return res.status(200).json({ title: 'Generated Recipe', ingredients, steps: ['Model returned unparsable response.'] })
+    }
+
+    if (mode === 'leftover_ideas') {
+      const modelIdeas = Array.isArray(parsed?.ideas)
+        ? parsed.ideas.map((x) => String(x || '').trim()).filter(Boolean).slice(0, count)
+        : []
+
+      const ideas = modelIdeas.length
+        ? modelIdeas
+        : buildLeftoverIdeas({ ingredients, cuisine, maxTime, count })
+
+      securityAudit('leftover_ideas_generated', {
+        ip,
+        status: 'success',
+        mode: 'openai',
+        ideasCount: ideas.length,
+      })
+      return res.status(200).json({ ideas })
     }
 
     securityAudit('recipe_generated', {

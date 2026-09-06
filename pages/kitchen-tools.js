@@ -135,6 +135,8 @@ export default function KitchenToolsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          mode: 'leftover_ideas',
+          count: 3,
           ingredients: parsed,
           cuisine: mood,
           maxTime: 20,
@@ -143,7 +145,10 @@ export default function KitchenToolsPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'AI idea generation failed')
-      setIdeas(recipeToIdeas(data))
+      const nextIdeas = Array.isArray(data?.ideas)
+        ? data.ideas.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 6)
+        : recipeToIdeas(data)
+      setIdeas(nextIdeas)
     } catch (err) {
       setIdeas([])
       setIdeasError(err?.message || 'AI idea generation failed')

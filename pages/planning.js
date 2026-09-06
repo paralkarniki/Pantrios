@@ -4,16 +4,10 @@ import { useRouter } from 'next/router'
 import PageHeader from '../components/PageHeader'
 import { subscribeToAuth } from '../lib/auth'
 import { readScopedJSON } from '../lib/clientStorage'
-import { recommendBudgetMeals } from '../lib/aiAssistant'
+import { deriveTimePresetsFromRecipes, recommendBudgetMeals, recipesToMealCandidates } from '../lib/aiAssistant'
 
 const RECENT_KEY = 'pantrio:recent'
-const PRESETS = [10, 15, 20, 30, 60]
-const MEALS = [
-  { title: 'Bean tacos', cost: 1.8 },
-  { title: 'Veg fried rice', cost: 2.4 },
-  { title: 'Chickpea pasta', cost: 3.2 },
-  { title: 'Chicken tray bake', cost: 4.9 },
-]
+const FAVORITES_KEY = 'pantrio:favorites'
 
 function encodeRecipe(recipe) {
   return btoa(unescape(encodeURIComponent(JSON.stringify(recipe))))
@@ -23,8 +17,9 @@ export default function PlanningHubPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [budget, setBudget] = useState('5')
-  const [timePreset, setTimePreset] = useState(15)
+  const [timePreset, setTimePreset] = useState(20)
   const [recent, setRecent] = useState([])
+  const [favorites, setFavorites] = useState([])
 
   useEffect(() => {
     const unsub = subscribeToAuth((u) => setUser(u))
@@ -36,18 +31,40 @@ export default function PlanningHubPage() {
     setRecent(Array.isArray(saved) ? saved.slice(0, 6) : [])
   }, [user?.uid])
 
+  useEffect(() => {
+    const saved = readScopedJSON(FAVORITES_KEY, user?.uid, [], { legacyKey: FAVORITES_KEY })
+    setFavorites(Array.isArray(saved) ? saved : [])
+  }, [user?.uid])
+
+  const mealCandidates = useMemo(() => {
+    const merged = [
+      ...recent.map((r) => ({ ...r, source: 'recent' })),
+      ...favorites.map((r) => ({ ...r, source: 'favorites' })),
+    ]
+    return recipesToMealCandidates(merged)
+  }, [recent, favorites])
+
+  const timePresets = useMemo(() => {
+    return deriveTimePresetsFromRecipes([...recent, ...favorites])
+  }, [recent, favorites])
+
+  useEffect(() => {
+    if (!timePresets.length) return
+    if (!timePresets.includes(timePreset)) setTimePreset(timePresets[0])
+  }, [timePreset, timePresets])
+
   const options = useMemo(() => {
     const b = Number(budget) || 0
-    return MEALS.filter((x) => x.cost <= b)
-  }, [budget])
+    return mealCandidates.filter((x) => x.cost <= b)
+  }, [budget, mealCandidates])
 
   const aiRanked = useMemo(() => {
-    return recommendBudgetMeals(MEALS, {
+    return recommendBudgetMeals(mealCandidates, {
       budget: Number(budget) || 0,
       timePreset,
       recentTitles: recent.map((r) => r?.title).filter(Boolean),
     }).slice(0, 3)
-  }, [budget, timePreset, recent])
+  }, [budget, timePreset, recent, mealCandidates])
 
   function cookAgain(recipe) {
     const encoded = encodeRecipe(recipe)
@@ -69,7 +86,7 @@ export default function PlanningHubPage() {
           <span className="badge">${budget || '0'}/serving</span>
         </div>
         <div style={{ display: 'grid', gap: '.6rem', marginTop: '.8rem' }}>
-          {options.length ? options.map((o) => <div key={o.title} className="stat-card"><div style={{ fontWeight: 700 }}>{o.title} · ${o.cost.toFixed(2)}</div></div>) : <p className="small-muted" style={{ margin: 0 }}>No meals in this range yet.</p>}
+          {options.length ? options.map((o) => <div key={o.title} className="stat-card"><div style={{ fontWeight: 700 }}>{o.title} · ${o.cost.toFixed(2)} <span className="small-muted">({o.source})</span></div></div>) : <p className="small-muted" style={{ margin: 0 }}>No saved recipes in this range yet. Save a few recipes first.</p>}
         </div>
       </section>
 
@@ -94,7 +111,7 @@ export default function PlanningHubPage() {
       <section className="card" style={{ marginTop: '1rem' }}>
         <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Time mode</h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem' }}>
-          {PRESETS.map((p) => (
+          {timePresets.map((p) => (
             <button key={p} className="chip" type="button" onClick={() => setTimePreset(p)} style={{ border: 'none', cursor: 'pointer', opacity: timePreset === p ? 1 : 0.75 }}>
               {p} min
             </button>
