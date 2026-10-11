@@ -26,7 +26,7 @@ export default function App({ Component, pageProps }) {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
-        <meta name="theme-color" content="#fffaf5" />
+        <meta name="theme-color" content="#f7f9ff" />
       </Head>
       <ThemeProvider>
         <SiteNav />
