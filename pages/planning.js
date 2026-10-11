@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
+import dynamic from 'next/dynamic'
 import PageHeader from '../components/PageHeader'
-import { PlannerModule } from './planner'
 import { subscribeToAuth } from '../lib/auth'
 import { readScopedJSON } from '../lib/clientStorage'
 import { buildAdaptiveNutritionPlan, deriveTimePresetsFromRecipes, recommendBudgetMeals, recipesToMealCandidates } from '../lib/aiAssistant'
+
+const PlannerModule = dynamic(
+  () => import('./planner').then((m) => m.PlannerModule),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="card" style={{ marginTop: '1rem' }}>
+        <p className="small-muted" style={{ margin: 0 }}>Loading weekly planner…</p>
+      </div>
+    ),
+  }
+)
 
 const RECENT_KEY = 'pantrio:recent'
 const FAVORITES_KEY = 'pantrio:favorites'
