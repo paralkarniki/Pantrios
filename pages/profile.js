@@ -32,8 +32,15 @@ export default function ProfilePage() {
 
     const loadLocalCounts = () => {
       try {
-        const favorites = readScopedJSON('pantrio:favorites', user?.uid, [], { legacyKey: 'pantrio:favorites' })
-        const recent = readScopedJSON('pantrio:recent', user?.uid, [], { legacyKey: 'pantrio:recent' })
+        const strictUserScope = !!user?.uid
+        const favorites = readScopedJSON('pantrio:favorites', user?.uid, [], {
+          legacyKey: 'pantrio:favorites',
+          readLegacy: !strictUserScope,
+        })
+        const recent = readScopedJSON('pantrio:recent', user?.uid, [], {
+          legacyKey: 'pantrio:recent',
+          readLegacy: !strictUserScope,
+        })
 
         const weekKeys = listScopedKeys('pantrio:meal-plan:', user?.uid)
         let plannedCount = 0
@@ -56,7 +63,10 @@ export default function ProfilePage() {
 
     const loadLocalHealth = () => {
       try {
-        const saved = readScopedJSON(PROFILE_HEALTH_KEY, user?.uid, {}, { legacyKey: PROFILE_HEALTH_KEY })
+        const saved = readScopedJSON(PROFILE_HEALTH_KEY, user?.uid, {}, {
+          legacyKey: PROFILE_HEALTH_KEY,
+          readLegacy: !user?.uid,
+        })
         setHealth({
           weightKg: saved?.weightKg ? String(saved.weightKg) : '',
           activity: saved?.activity || 'moderate',
@@ -169,17 +179,7 @@ export default function ProfilePage() {
   }
 
   function updateEmail() {
-    const next = window.prompt('Enter new email', user?.email || '')
-    if (!next) return
-    try {
-      const clean = String(next).trim()
-      if (clean.length < 4) throw new Error('Email too short')
-      localStorage.setItem('pantrio:localUser', JSON.stringify({ email: clean }))
-      window.dispatchEvent(new Event('pantrio:auth'))
-      setMessage('Email updated')
-    } catch (err) {
-      setMessage(err?.message || 'Update failed')
-    }
+    setMessage('For data safety, email updates are disabled here. Update email in Firebase Auth account settings flow.')
   }
 
   return (
@@ -320,7 +320,7 @@ export default function ProfilePage() {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" onClick={exportData} className="btn-primary">📥 Export my data</button>
                   <Link href="/family-recipes" className="btn-primary" style={{ textDecoration: 'none' }}>👨‍👩‍👧 Family Recipes</Link>
-                  <Link href="/planner" className="btn-primary" style={{ textDecoration: 'none' }}>📅 View meal plan</Link>
+                  <Link href="/planning" className="btn-primary" style={{ textDecoration: 'none' }}>📅 View meal plan</Link>
                 </div>
               </div>
 
