@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/router'
 import PageHeader from '../components/PageHeader'
+import { PlannerModule } from './planner'
 import { subscribeToAuth } from '../lib/auth'
 import { readScopedJSON } from '../lib/clientStorage'
-import { deriveTimePresetsFromRecipes, recommendBudgetMeals, recipesToMealCandidates } from '../lib/aiAssistant'
+import { buildAdaptiveNutritionPlan, deriveTimePresetsFromRecipes, recommendBudgetMeals, recipesToMealCandidates } from '../lib/aiAssistant'
 
 const RECENT_KEY = 'pantrio:recent'
 const FAVORITES_KEY = 'pantrio:favorites'
@@ -17,6 +17,8 @@ export default function PlanningHubPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [budget, setBudget] = useState('5')
+  const [dailyCalories, setDailyCalories] = useState('2200')
+  const [nutritionGoal, setNutritionGoal] = useState('balanced')
   const [timePreset, setTimePreset] = useState(20)
   const [recent, setRecent] = useState([])
   const [favorites, setFavorites] = useState([])
@@ -66,6 +68,14 @@ export default function PlanningHubPage() {
     }).slice(0, 3)
   }, [budget, timePreset, recent, mealCandidates])
 
+  const nutritionCoach = useMemo(() => {
+    return buildAdaptiveNutritionPlan([...recent, ...favorites], {
+      dailyCalories: Number(dailyCalories) || 2200,
+      goal: nutritionGoal,
+      mealsPerDay: 3,
+    })
+  }, [recent, favorites, dailyCalories, nutritionGoal])
+
   function cookAgain(recipe) {
     const encoded = encodeRecipe(recipe)
     router.push(`/generate?r=${encodeURIComponent(encoded)}`)
@@ -75,9 +85,39 @@ export default function PlanningHubPage() {
     <div className="app-container">
       <PageHeader
         title="Planning Hub"
-        subtitle="Budget mode + time mode + cook again memory"
-        actions={<Link href="/planner" className="btn-primary" style={{ textDecoration: 'none' }}>Open weekly planner</Link>}
+        subtitle="Nutrition coach + budget mode + time mode + cook again memory"
+        actions={<span className="badge">Weekly planner integrated below</span>}
       />
+
+      <section className="card" style={{ marginTop: '1rem' }}>
+        <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Smart nutrition coach</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.6rem' }}>
+          <input
+            className="form-control"
+            type="number"
+            value={dailyCalories}
+            onChange={(e) => setDailyCalories(e.target.value)}
+            placeholder="daily calories"
+          />
+          <select className="form-control" value={nutritionGoal} onChange={(e) => setNutritionGoal(e.target.value)}>
+            <option value="balanced">Balanced</option>
+            <option value="high-protein">High protein</option>
+            <option value="lean">Lean cut</option>
+          </select>
+        </div>
+        <div className="stat-card" style={{ marginTop: '.8rem', gap: 14, flexWrap: 'wrap' }}>
+          <span className="badge">Per meal ~{nutritionCoach?.perMeal?.calories || 0} kcal</span>
+          <span className="badge">Protein {nutritionCoach?.perMeal?.proteinG || 0}g</span>
+          <span className="badge">Carbs {nutritionCoach?.perMeal?.carbsG || 0}g</span>
+          <span className="badge">Fat {nutritionCoach?.perMeal?.fatG || 0}g</span>
+          <span className="badge">Fiber {nutritionCoach?.perMeal?.fiberG || 0}g</span>
+        </div>
+        <div style={{ display: 'grid', gap: '.5rem', marginTop: '.75rem' }}>
+          {(nutritionCoach?.guidance || []).map((line) => (
+            <div key={line} className="small-muted">• {line}</div>
+          ))}
+        </div>
+      </section>
 
       <section className="card" style={{ marginTop: '1rem' }}>
         <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Budget mode</h2>
@@ -133,6 +173,10 @@ export default function PlanningHubPage() {
             </div>
           )) : <p className="small-muted" style={{ margin: 0 }}>No recent recipes yet. Generate one first.</p>}
         </div>
+      </section>
+
+      <section style={{ marginTop: '1rem' }}>
+        <PlannerModule embedded />
       </section>
     </div>
   )

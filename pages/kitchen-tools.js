@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import PageHeader from '../components/PageHeader'
 import RecipeCard from '../components/RecipeCard'
-import { extractIngredientsFromText, scoreSubstitutions } from '../lib/aiAssistant'
+import { buildLeftoverChain, extractIngredientsFromText, scoreSubstitutions, scoreWasteReduction } from '../lib/aiAssistant'
 import theme from '../lib/theme'
 
 function detectIngredients(fileName = '') {
@@ -38,6 +38,8 @@ export default function KitchenToolsPage() {
   const [leftovers, setLeftovers] = useState('')
   const [mood, setMood] = useState(String((theme.cuisineOptions || [])[0] || 'homestyle').toLowerCase())
   const [ideas, setIdeas] = useState([])
+  const [leftoverChain, setLeftoverChain] = useState([])
+  const [wasteImpact, setWasteImpact] = useState({ score: 0, savedUsd: 0 })
   const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [ideasError, setIdeasError] = useState('')
   const [loadingRecipe, setLoadingRecipe] = useState(false)
@@ -70,6 +72,8 @@ export default function KitchenToolsPage() {
 
   useEffect(() => {
     setIdeas([])
+    setLeftoverChain([])
+    setWasteImpact({ score: 0, savedUsd: 0 })
     setIdeasError('')
   }, [leftovers, mood])
 
@@ -157,6 +161,20 @@ export default function KitchenToolsPage() {
     }
   }
 
+  function generateLeftoverChain() {
+    const chain = buildLeftoverChain(leftovers, { cuisine: mood, days: 3 })
+    if (!chain.length) {
+      setIdeasError('Add leftovers first to build a transformation chain.')
+      setLeftoverChain([])
+      setWasteImpact({ score: 0, savedUsd: 0 })
+      return
+    }
+    const impact = scoreWasteReduction(chain)
+    setLeftoverChain(chain)
+    setWasteImpact(impact)
+    setIdeasError('')
+  }
+
   return (
     <div className="app-container">
       <PageHeader
@@ -234,12 +252,39 @@ export default function KitchenToolsPage() {
           <button className="btn-primary" type="button" onClick={generateLeftoverIdeas} disabled={loadingIdeas}>
             {loadingIdeas ? 'Generating…' : 'AI suggest leftover ideas'}
           </button>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={generateLeftoverChain}
+            style={{ marginLeft: '.5rem', background: 'linear-gradient(135deg,#10b981,#047857)' }}
+          >
+            Leftover transformer chain
+          </button>
         </div>
         <div style={{ display: 'grid', gap: '.6rem', marginTop: '.8rem' }}>
           {ideas.map((idea) => <div key={idea} className="stat-card"><div style={{ fontWeight: 700 }}>{idea}</div></div>)}
           {!ideas.length && !ideasError && <p className="small-muted" style={{ margin: 0 }}>Generate AI ideas from leftovers and mood.</p>}
           {!!ideasError && <p className="small-muted" style={{ margin: 0, color: '#b91c1c' }}>{ideasError}</p>}
         </div>
+
+        {!!leftoverChain.length && (
+          <div style={{ marginTop: '.9rem', display: 'grid', gap: '.6rem' }}>
+            <div className="stat-card" style={{ justifyContent: 'space-between', gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>No-waste chain score: {wasteImpact.score}/100</div>
+                <div className="small-muted" style={{ marginTop: 4 }}>Estimated weekly savings: ${Number(wasteImpact.savedUsd || 0).toFixed(2)}</div>
+              </div>
+              <span className="badge">AI leftover planner</span>
+            </div>
+            {leftoverChain.map((day) => (
+              <div key={`${day.day}-${day.title}`} className="stat-card" style={{ display: 'grid', gap: 6 }}>
+                <div style={{ fontWeight: 800 }}>Day {day.day}: {day.title}</div>
+                <div className="small-muted">{day.action}</div>
+                <div className="small-muted">Carry over: <strong>{day.carryOver}</strong></div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {aiRecipe && (
